@@ -697,6 +697,7 @@ export async function boot() {
 		toLoad.push(importCardPack(cardPack));
 	}
 	for (const characterPack of config.get("all").characters) {
+		// console.log(characterPack);
 		toLoad.push(importCharacterPack(characterPack));
 	}
 	toLoad.push(lib.init.promises.js(`${lib.assetURL}character`, "rank"));

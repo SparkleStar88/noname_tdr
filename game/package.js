@@ -34,6 +34,8 @@ window.noname_package = {
 		//DIY系列
 		diy: "DIY",
 		key: "Key",
+		// 天地人系列
+		tiandiren: "天地人",
 	},
 	card: {
 		standard: "标准",

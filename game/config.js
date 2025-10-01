@@ -131,7 +131,7 @@ window.config = {
 
 	cards: ["standard", "extra"],
 	characters: ["standard", "shenhua", "sp", "sp2", "yijiang", "newjiang", "sixiang", "refresh", "mobile", "extra", "yingbian", "sb", "tw", "offline", "clan", "collab", "xianding", "huicui", "shiji", "jsrg", "sxrm", "onlyOL"],
-	moderned_chracters: ["standard", "shenhua", "sp", "sp2", "yijiang", "newjiang", "sixiang", "refresh", "mobile", "extra", "yingbian", "sb", "tw", "offline", "clan", "collab", "xianding", "huicui", "shiji", "onlyOL", "jsrg", "sxrm", "old", "diy", "key"],
+	moderned_chracters: ["standard", "shenhua", "sp", "sp2", "yijiang", "newjiang", "sixiang", "refresh", "mobile", "extra", "yingbian", "sb", "tw", "offline", "clan", "collab", "xianding", "huicui", "shiji", "onlyOL", "jsrg", "sxrm", "old", "diy", "key", "tiandiren"],
 	moderned_modes: ["guozhan"],
 	connect_characters: ["diy"],
 	connect_cards: ["huodong", "guozhan", "sp", "zhulu", "yingbian", "yongjian", "xianxia"],
