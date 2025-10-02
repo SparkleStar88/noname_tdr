@@ -4,15 +4,19 @@ import { lib, game, ui, get, ai, _status } from "../../noname.js";
 const skills = {
 
 	tdr_wusheng: {
+		// mod 的作用是改变游戏内部分默认参数,如距离等
 		mod: {
-			// 方块杀无距离限制
+			// 锁定技,你的方块杀无距离限制
 			targetInRange(card) {
 				if (get.suit(card) == "diamond" && card.name == "sha") {
 					return true;
 				}
 			},
 		},
+		// 不是锁定技
+		// 锁定技的判定：1.info.trigger&&info.forced；2.info.mod；3.info.locked
 		locked: false,
+		// TODO: 理解 audio 的工作原理
 		audio: "wusheng",
 		audioname: ["re_guanyu", "jsp_guanyu", "re_guanzhang", "dc_jsp_guanyu"],
 		audioname2: {
@@ -24,89 +28,137 @@ const skills = {
 			ty_guanxing: "wusheng_guanzhang",
 			ol_guanzhang: "wusheng_ol_guanzhang",
 		},
+		// 可以使用的时机:
+		// 1. 响应其他人的牌
+		// 2. 主动打出或者使用
 		enable: ["chooseToRespond", "chooseToUse"],
+		// 哪些牌可以用 - 红牌可以用
 		filterCard(card, player) {
-			if (get.zhu(player, "shouyue")) {
-				return true;
-			}
 			return get.color(card) == "red";
 		},
+		// 手牌/装备/木牛流马的牌可以用
 		position: "hes",
+		// 目标卡牌视为[杀]
 		viewAs: {
 			name: "sha",
 		},
+		// 视为技能按钮出现条件
+		// 手牌/装备/木牛流马的牌 中有红色的牌
 		viewAsFilter(player) {
-			if (get.zhu(player, "shouyue")) {
-				if (!player.countCards("hes")) {
+			if (!player.countCards("hes", { color: "red" })) {
 					return false;
-				}
-			} else {
-				if (!player.countCards("hes", { color: "red" })) {
-					return false;
-				}
 			}
 		},
+		// 弹窗显示
 		prompt: "将一张红色牌当杀使用或打出",
+		// ai 判断技能是否要发动
+		// 场景	使用方法	参数	返回值含义
+		// 选牌	ai.basic.chooseCard	card: Card	数字 → 牌值越大越倾向选，布尔 → 能否选
+		// 选按钮	ai.basic.chooseButton	button: Button	数字 → 优先级，布尔 → 是否选该按钮
+		// 选玩家	ai.basic.chooseTarget	target: Player	数字 → 越大越倾向选，布尔 → 是否选择
+		// 触发技判断是否发动	createTrigger	event: GameEvent, player: Player	true → 发动技能，false → 不发动
+		// 事件触发过滤	触发条件过滤	event, player	true → 可以触发，false → 不触发
 		check(card) {
-			var val = get.value(card);
-			if (_status.event.name == "chooseToRespond") {
+			const val = get.value(card);
+			const event = _status.event;
+			const player = get.player();
+
+			// 响应场景：优先使用价值低的牌
+			if (event.name === "chooseToRespond") {
 				return 1 / Math.max(0.1, val);
+			}
+			// 主动使用场景
+			if (event.name === "chooseToUse") {
+				const hasSha = player.countCards("hes", "sha") > 0;
+				const hasDiamond = player.countCards("hes", c => get.suit(c) === "diamond") > 0;
+
+				if (!hasSha) {
+					if (hasDiamond) {
+						return 20 - val;  // 没有杀但有方块牌时，优先度最高
+					}
+					return 10 - val;      // 没有杀时，次高优先度
+				}
 			}
 			return 5 - val;
 		},
+		// 主动技 AI 的触发逻辑
 		ai: {
+			result: {
+				// 选择目标的优先度
+				target(player, target) {
+					// 如果距离不够,且有方块牌,则优先级高
+					if (!player.canUse("sha", target) && player.countCards("hes", card => get.suit(card) == "diamond")) {
+						return 1;
+					}
+					// 如果距离够,且有杀,则优先级低
+					if (player.canUse("sha", target) && (player.countCards("hs", "sha"))) {
+						return -1;
+					}
+					return -0.5;
+				},
+			},
+			// 【响应杀】 作用是告诉AI手里没『杀』也可能出『杀』,防止没『杀』直接掉血; 常用于视为技；
 			respondSha: true,
+			// 在hes中没有红色牌的时候不能发动技能
 			skillTagFilter(player) {
-				if (get.zhu(player, "shouyue")) {
-					if (!player.countCards("hes")) {
-						return false;
-					}
-				} else {
-					if (!player.countCards("hes", { color: "red" })) {
-						return false;
-					}
+				if (!player.countCards("hes", { color: "red" })) {
+					return false;
 				}
 			},
 		},
 	},
 
 	tdr_yijue: {
+		// 这只是一个自定义函数罢了,用于初始化自定义技能的
 		initSkill(skill) {
+			// 在全局的 library 中添加这个技能
 			if (!lib.skill[skill]) {
 				lib.skill[skill] = {
 					charlotte: true,
 					onremove: true,
 					mark: true,
 					marktext: "绝",
+					// 标记显示的内容
 					intro: {
 						markcount: () => 0,
-						content: storage => `本回合不能使用或打出手牌、非锁定技失效且受到${get.translation(storage[1])}红桃【杀】的伤害+1`,
+						content: storage => `本回合非锁定技失效且受到${get.translation(storage[1])}红桃【杀】的伤害+1`,
 					},
-					group: "new_yijue_ban",
+					// 拥有 tdr_yijue_ban 子技能，我的版本中没有用到
+					// group: "tdr_yijue_ban",
 				};
 				lib.translate[skill] = "义绝";
 				lib.translate[skill + "_bg"] = "绝";
 			}
 		},
 		audio: "yijue",
+		// 出牌阶段使用
 		enable: "phaseUse",
+		// 限一次
 		usable: 1,
-		// 有手牌的其他角色
+		// 目标只能为有手牌的其他角色
 		filterTarget(card, player, target) {
 			return player != target && target.countCards("h");
 		},
+		// 自己能够选择的卡牌必须是可以被弃置的
 		filterCard: lib.filter.cardDiscardable,
+		// 可以选择手牌或者装备牌
 		position: "he",
+		// AI 选择低价值的牌优先
 		check(card) {
 			return 8 - get.value(card);
 		},
+		// 主动技能的内容
 		async content(event, trigger, player) {
+			// 如果目标因为某种原因没有手牌了,取消之
 			const { target } = event;
 			if (!target.countCards("h")) {
 				return;
 			}
 			const { result } = await target
+				// 强制选择一张手牌
 				.chooseCard(true, "h")
+				// 这个过程中, AI 会加入对 card 的函数
+				// 如果是黑色/红色,给出不同的偏好值
 				.set("ai", card => {
 					const player = get.player();
 					if (get.color(card) == "black") {
@@ -114,12 +166,15 @@ const skills = {
 					}
 					return 18 - get.value(card);
 				})
+				// 保存一些结果到事件的"black"属性当中
 				.set(
 					"black",
 					(() => {
+						// 对友方尽可能不选黑色
 						if (get.attitude(target, player) > 0) {
 							return 18;
 						}
+						// 如果目标手牌中有「闪」「桃」「酒（且血量小于3）」,越不选择黑牌
 						if (
 							target.hasCard(card => {
 								const name = get.name(card, target);
@@ -128,6 +183,7 @@ const skills = {
 						) {
 							return 18 / target.hp;
 						}
+						// 血量越低,越不选择黑牌
 						if (target.hp < 3) {
 							return 12 / target.hp;
 						}
@@ -135,23 +191,40 @@ const skills = {
 					})()
 				);
 			if (result?.bool && result?.cards?.length) {
+				// 展示选择的所有牌
 				const { cards } = result;
 				await target.showCards(cards);
+				// 选择第一张牌
 				const [card] = cards;
 				if (get.color(card) == "black") {
+					// 给对方添加技能fengyin,非锁定技失效
+					// fengyin 在 noname/library/index.js 当中的 通用 skill
 					if (!target.hasSkill("fengyin")) {
 						target.addTempSkill("fengyin");
 					}
-					const skill = "new_yijue_" + player.playerid;
-					game.broadcastAll(lib.skill.new_yijue.initSkill, skill);
+					// 每个发动技能的人，都会生成自己专属的“义绝技能实例”，不会互相冲突
+					// 防止多个人同时出现义绝
+					const skill = "tdr_yijue_" + player.playerid;
+					// 告诉所有人“现在场上出现了一个新技能 tdr_yijue_p1，它的效果是 XX（通过 initSkill 定义的）”。
+					game.broadcastAll(lib.skill.tdr_yijue.initSkill, skill);
 					target.addTempSkill(skill);
+					// 这两行是技能的效果
+					// 第一个是加伤值,第二个是发起者
 					target.storage[skill] ??= [0, player];
 					target.storage[skill][0]++;
+					// 界面上添加标记，显示技能状态
 					target.markSkill(skill);
-					player.addTempSkill("new_yijue_effect");
+					// 获得子技能
+					player.addTempSkill("tdr_yijue_effect");
+					await player.draw();
+
 				} else if (get.color(card) == "red") {
+					// 如果是红色,获得这张牌
 					await player.gain(card, target, "give", "bySelf");
+					// 选择是否让玩家恢复体力?
 					if (target.isDamaged()) {
+						// .set("choice", ...) 给这次选择设置一个 AI 的选择偏好
+						// get.recoverEffect(target, player, player) 这是一个计算 让目标回血的收益 的函数
 						const { result } = await player.chooseBool(`是否让${get.translation(target)}回复1点体力？`).set("choice", get.recoverEffect(target, player, player) > 0);
 						if (result?.bool) {
 							await target.recover();
@@ -162,6 +235,7 @@ const skills = {
 		},
 		ai: {
 			result: {
+				// 选择目标的优先度
 				target(player, target) {
 					var hs = player.getCards("h");
 					if (hs.length < 3) {
@@ -176,30 +250,46 @@ const skills = {
 					return -0.5;
 				},
 			},
+			// AI 发动这个技能的时机比较早
 			order: 9,
+			// 可强中
 			directHit_ai: true,
+			// 只对没有 tdr_yijue_id 标签的角色发动
 			skillTagFilter(player, tag, arg) {
-				if (!arg?.target?.hasSkill("new_yijue_" + player.playerid)) {
+				if (!arg?.target?.hasSkill("tdr_yijue_" + player.playerid)) {
 					return false;
 				}
 			},
 		},
+		// 子技能：你不会拥有写在这里面的技能，可以调用，可以用技能组联系起来;
+		// 子技能名字：“主技能_子技能”，翻译为主技能翻译
+		// 注：子技能，会被视为“技能_子技能”独立保存起来。
 		subSkill: {
 			effect: {
+				// 武将特有固有技能
+				// 从逻辑上来看，比固定技优先级还高，不会受“fengyin”，“baiban”等技能移除；
+				// 在clearSkills时，如果不是“删除所有的all为true”的情况下，不会被移除；
+				// 不会被，“化身”之类的技能获得，删除；
 				charlotte: true,
+				// 准备造成伤害时触发
 				trigger: { source: "damageBegin1" },
+				// 对有标记的角色使用的红桃杀伤害有效
 				filter(event, player) {
-					return event.card?.name == "sha" && get.suit(event.card) == "heart" && event.notLink() && event.player.storage["new_yijue_" + player.playerid]?.[1] == player;
+					return event.card?.name == "sha" && get.suit(event.card) == "heart" && event.notLink() && event.player.storage["tdr_yijue_" + player.playerid]?.[1] == player;
 				},
+				// 强制触发
 				forced: true,
 				popup: false,
+				// 伤害加存储的增伤值
 				async content(event, trigger, player) {
-					trigger.num += trigger.player.storage["new_yijue_" + player.playerid][0];
+					trigger.num += trigger.player.storage["tdr_yijue_" + player.playerid][0];
 				},
 			},
+			// 我的版本中这个用不到
 			ban: {
 				charlotte: true,
 				mod: {
+					// 不能使用手牌响应
 					cardEnabled2(card) {
 						if (get.position(card) == "h") {
 							return false;

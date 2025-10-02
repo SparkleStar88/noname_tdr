@@ -12,7 +12,7 @@ const characters = {
 	tdr_guanyu: {
 		sex: "male",
 		group: "shu",
-		hp: 4,
+		hp: 5,
 		skills: ["tdr_wusheng", "tdr_yijue"],
 	},
 
