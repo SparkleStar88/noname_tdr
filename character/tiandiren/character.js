@@ -14,6 +14,7 @@ const characters = {
 		group: "shu",
 		hp: 5,
 		skills: ["tdr_wusheng", "tdr_yijue"],
+		dieAudios: ["sb_guanyu"]
 	},
 
 	tdr_sunquan: {
@@ -21,7 +22,7 @@ const characters = {
 		group: "wu",
 		hp: 4,
 		skills: ["tdr_zhiheng", "tdr_tongye"],
-		isZhugong: true,
+		dieAudios: ["sb_sunquan"]
 	},
 
 

@@ -1,4 +1,15 @@
 export default {
+
+	// "#tdr_wusheng": "刀锋所向，战无不克！",
+	// "#tdr_wusheng": "逆贼，哪里走！",
+	// "#tdr_yijue1": "恩已断，义当绝！",
+	// "#tdr_yijue2": "关某，向来恩怨分明！",
+	// "#tdr_guanyu:die": "桃园一拜，恩义常在……",
+
+    // "#tdr_zhiheng1": "制衡互牵，大局可安。",
+	// "#tdr_zhiheng2": "不急不躁，稳谋应对。",
+	// "#tdr_sunquan:die": "锦绣江东，岂能失于我手……",
+
 // 	"#regongao1": "百战余生者，唯我大魏虎贲！",
 // 	"#regongao2": "大魏凭武立国，当以骨血为饲！",
 // 	"#rejuyi1": "举义旗，兴王师，伐不臣！",
@@ -399,11 +410,6 @@ export default {
 // 	"#reyajiao1": "策马驱前，斩敌当先！",
 // 	"#reyajiao2": "遍寻天下，但求一败！",
 // 	"#re_zhaoyun:die": "你们谁……还敢再上……",
-// 	"#wusheng_re_guanyu1": "刀锋所向，战无不克！",
-// 	"#wusheng_re_guanyu2": "逆贼，哪里走！",
-// 	"#yijue1": "恩已断，义当绝！",
-// 	"#yijue2": "关某，向来恩怨分明！",
-// 	"#re_guanyu:die": "桃园一拜，恩义常在……",
 // 	"#retieji1": "目标敌阵，全军突击！",
 // 	"#retieji2": "敌人阵型已乱，随我杀！",
 // 	"#re_machao:die": "请将我，葬在西凉……",
@@ -462,11 +468,10 @@ export default {
 // 	"#rejizhi1": "得上通，智集心。",
 // 	"#rejizhi2": "集万千才智，致巧趣鲜用。",
 // 	"#re_huangyueying:die": "我的面容，有吓到你吗？",
-// 	"#rezhiheng1": "制衡互牵，大局可安。",
-// 	"#rezhiheng2": "不急不躁，稳谋应对。",
+
 // 	"#rejiuyuan1": "你们真是朕的得力干将。",
 // 	"#rejiuyuan2": "有爱卿在，朕无烦忧。",
-// 	"#re_sunquan:die": "锦绣江东，岂能失于我手……",
+
 // 	"#xiaoji_re_sunshangxiang1": "剑利弓急，你可打不过我的。",
 // 	"#xiaoji_re_sunshangxiang2": "我会的武器，可多着呢。",
 // 	"#rejieyin1": "得遇夫君，妾身福分。",

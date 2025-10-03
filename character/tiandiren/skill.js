@@ -16,18 +16,7 @@ const skills = {
 		// 不是锁定技
 		// 锁定技的判定：1.info.trigger&&info.forced；2.info.mod；3.info.locked
 		locked: false,
-		// TODO: 理解 audio 的工作原理
-		audio: "wusheng",
-		audioname: ["re_guanyu", "jsp_guanyu", "re_guanzhang", "dc_jsp_guanyu"],
-		audioname2: {
-			dc_guansuo: "wusheng_guansuo",
-			guanzhang: "wusheng_guanzhang",
-			guansuo: "wusheng_guansuo",
-			gz_jun_liubei: "shouyue_wusheng",
-			std_guanxing: "wusheng_guanzhang",
-			ty_guanxing: "wusheng_guanzhang",
-			ol_guanzhang: "wusheng_ol_guanzhang",
-		},
+		audio: ["wusheng_re_guanyu"],
 		// 可以使用的时机:
 		// 1. 响应其他人的牌
 		// 2. 主动打出或者使用
@@ -121,7 +110,7 @@ const skills = {
 					// 标记显示的内容
 					intro: {
 						markcount: () => 0,
-						content: storage => `本回合非锁定技失效且受到${get.translation(storage[1])}红桃【杀】的伤害+1`,
+						content: storage => `本回合非锁定技失效且受到${get.translation(storage[1])}红桃牌的伤害+1`,
 					},
 					// 拥有 tdr_yijue_ban 子技能，我的版本中没有用到
 					// group: "tdr_yijue_ban",
@@ -130,7 +119,7 @@ const skills = {
 				lib.translate[skill + "_bg"] = "绝";
 			}
 		},
-		audio: "yijue",
+		audio: ["yijue"],
 		// 出牌阶段使用
 		enable: "phaseUse",
 		// 限一次
@@ -167,6 +156,7 @@ const skills = {
 					return 18 - get.value(card);
 				})
 				// 保存一些结果到事件的"black"属性当中
+				// 返回值越大表示越不选择黑牌
 				.set(
 					"black",
 					(() => {
@@ -174,14 +164,14 @@ const skills = {
 						if (get.attitude(target, player) > 0) {
 							return 18;
 						}
-						// 如果目标手牌中有「闪」「桃」「酒（且血量小于3）」,越不选择黑牌
+						// 如果目标手牌中有「闪」「无懈可击」等响应牌，且血量较高，越偏好选择黑牌
 						if (
 							target.hasCard(card => {
 								const name = get.name(card, target);
-								return name === "shan" || name === "tao" || (name === "jiu" && target.hp < 3);
-							})
+								return (name === "shan" || name === "wuxie");
+							}) && target.hp > 2
 						) {
-							return 18 / target.hp;
+							return 0;
 						}
 						// 血量越低,越不选择黑牌
 						if (target.hp < 3) {
@@ -273,9 +263,9 @@ const skills = {
 				charlotte: true,
 				// 准备造成伤害时触发
 				trigger: { source: "damageBegin1" },
-				// 对有标记的角色使用的红桃杀伤害有效
+				// 对有标记的角色使用的红桃牌伤害有效
 				filter(event, player) {
-					return event.card?.name == "sha" && get.suit(event.card) == "heart" && event.notLink() && event.player.storage["tdr_yijue_" + player.playerid]?.[1] == player;
+					return get.suit(event.card) == "heart" && event.notLink() && event.player.storage["tdr_yijue_" + player.playerid]?.[1] == player;
 				},
 				// 强制触发
 				forced: true,
@@ -302,13 +292,17 @@ const skills = {
 
 	tdr_zhiheng: {
 		audio: 2,
-		audioname2: { shen_caopi: "rezhiheng_shen_caopi", new_simayi: "rezhiheng_new_simayi" },
 		mod: {
+			// 动态调整每一张牌的-默认优先级数值num
 			aiOrder(player, card, num) {
+				// 保留部分卡牌的初始优先级
 				if (num <= 0 || get.itemtype(card) !== "card" || get.type(card) !== "equip") {
 					return num;
 				}
+				// 找出玩家身上对应部位已有的装备（和 card 的子类别相同，如防具）
 				let eq = player.getEquip(get.subtype(card));
+    			// 如果已有装备，并且新装备的价值（equipValue）相较旧装备没有提升太多，
+			    // 就判定这张牌优先度为 0 —— 也就是不考虑使用它
 				if (eq && get.equipValue(card) - get.equipValue(eq) < Math.max(1.2, 6 - player.hp)) {
 					return 0;
 				}
@@ -319,16 +313,23 @@ const skills = {
 		usable: 1,
 		position: "he",
 		filterCard: lib.filter.cardDiscardable,
+		// discard，lose其中一个false，都会为非视为技走lose事件失去卡牌，且提供丰富的参数设置；
+		// 我的理解是，如果都设置为true
+		// 则进入content函数的时候，选择的牌已经不在角色的手中了
 		discard: false,
 		lose: false,
 		delay: false,
+		// 至少选择一张卡
 		selectCard: [1, Infinity],
 		allowChooseAll: true,
+		// 是否选择对card这张卡发动技能
 		check(card) {
+			// console.log(card);
 			let player = _status.event.player;
 			if (
 				get.position(card) == "h" &&
 				!player.countCards("h", "du") &&
+				// 如果血量大于二或者手中没有价值大于8的牌
 				(player.hp > 2 ||
 					!player.countCards("h", i => {
 						return get.value(i) >= 8;
@@ -338,75 +339,111 @@ const skills = {
 			}
 			if (get.position(card) == "e") {
 				let subs = get.subtypes(card);
+				// 如果是防具或者+1马，除非血量特别高，否则不制衡
 				if (subs.includes("equip2") || subs.includes("equip3")) {
 					return player.getHp() - get.value(card);
 				}
 			}
 			return 6 - get.value(card);
 		},
-		content() {
-			"step 0";
-			player.discard(cards);
+		async content(event, trigger, player) {
 			event.num = 1;
 			var hs = player.getCards("h");
+			// 如果手中本身就没有牌，则不奖励
 			if (!hs.length) {
 				event.num = 0;
 			}
+			// 如果选择的牌不是手中全部的牌，也没有奖励
 			for (var i = 0; i < hs.length; i++) {
-				if (!cards.includes(hs[i])) {
+				if (!event.cards.includes(hs[i])) {
 					event.num = 0;
 					break;
 				}
 			}
-			"step 1";
-			player.draw(event.num + cards.length);
-		},
-		//group:'rezhiheng_draw',
-		subSkill: {
-			draw: {
-				trigger: { player: "loseEnd" },
-				silent: true,
-				filter(event, player) {
-					if (event.getParent(2).skill != "rezhiheng" && event.getParent(2).skill != "jilue_zhiheng") {
-						return false;
-					}
-					if (player.countCards("h")) {
-						return false;
-					}
-					for (var i = 0; i < event.cards.length; i++) {
-						if (event.cards[i].original == "h") {
-							return true;
-						}
-					}
-					return false;
-				},
-				content() {
-					player.addTempSkill("rezhiheng_delay", trigger.getParent(2).skill + "After");
-				},
-			},
-			delay: {},
+			await player.discard(event.cards);
+			await player.draw(event.num + event.cards.length);
 		},
 		ai: {
 			order(item, player) {
+				// 如果手牌或者装备区有高价值的牌，后制衡
 				if (player.hasCard(i => get.value(i) > Math.max(6, 9 - player.hp), "he")) {
 					return 1;
 				}
 				return 10;
 			},
+			// AI发动技能对玩家的收益是1
 			result: {
 				player: 1,
 			},
+			// 这个标签不清楚是干什么的
+			// 官方 AISkill 中没有写，有可能是自定义标签
 			nokeep: true,
+			// skillTagFilter是技能标签的生效限制条件
+			// 意思是当 player.hasSkillTag('xxx') 时：
+			// 先跑 skillTagFilter（动态条件过滤），再检查 info.ai[tag] 的值，最终决定 AI 是否认为这个技能带有某种tag
+			// 比如：当 player.hasSkillTag('nokeep') 时：
+			// 先跑 skillTagFilter(player, 'nokeep', arg) → 如果返回 true
+			// 再看 ai.nokeep → 是 true，所以最终结果为 有 nokeep
+
+			// 经过实战测试，孙权吃【桃】之前的时候会调用这个函数
+			// arg包含card和target两个参数
+			// card是桃本身，target是孙权
 			skillTagFilter(player, tag, arg) {
+				// 当 AI 判断 "nokeep" 标签时，如果：
+				// 正在出牌阶段，
+				// 本回合还没用过【制衡】，
+				// 手里有非桃牌，而且当前牌是桃（或没特别指定牌），
+				// 那么返回 true → AI 会认为这张桃“不值得保留”，更倾向于制衡
 				if (tag === "nokeep") {
-					return (!arg || (arg && arg.card && get.name(arg.card) === "tao")) && player.isPhaseUsing() && !player.getStat().skill.rezhiheng && player.hasCard(card => get.name(card) !== "tao", "h");
+					return (!arg || (arg && arg.card && get.name(arg.card) === "tao")) && player.isPhaseUsing() && !player.getStat().skill.tdr_zhiheng && player.hasCard(card => get.name(card) !== "tao", "h");
 				}
 			},
 			threaten: 1.55,
 		},
 	},
 
+	tdr_tongye: {
+		mod: {
+			globalFrom(from, to, distance) {
+				// 如果目标是吴国武将，直接返回 1
+				if (to.group === "wu") {
+					return 1;
+				}
 
+				let counterclockwise = 0;
+				let clockwise = 0;
+				const totalPopulation = game.players.length + game.dead.length + 1;
+
+				const isValid = player =>
+					player.isAlive() &&
+					!player.isOut() &&
+					!player.hasSkill("undist") &&
+					!player.isMin(true) &&
+					player.group != "wu";
+
+				let player = from;
+				for (let i = 0; i < totalPopulation; i++) {
+					if (player.nextSeat === to) break;
+					player = player.nextSeat;
+					if (isValid(player)) counterclockwise++;
+				}
+
+				player = from;
+				for (let i = 0; i < totalPopulation; i++) {
+					if (player.previousSeat === to) break;
+					player = player.previousSeat;
+					if (isValid(player)) clockwise++;
+				}
+
+				return Math.min(clockwise, counterclockwise);
+			}
+		},
+		ai: {
+			threaten: 1.05,
+		}
+	},
+
+	
 // 	ollianhuan: {
 // 		audio: "xinlianhuan",
 // 		audioname: ["ol_pangtong"],
